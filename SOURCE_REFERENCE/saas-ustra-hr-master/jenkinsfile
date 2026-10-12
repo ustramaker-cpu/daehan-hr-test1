@@ -1,0 +1,76 @@
+properties([
+    parameters([
+        booleanParam(name: 'DEPLOY_THYMELEAF', defaultValue: true, description: '화면(Thymeleaf) 모듈 배포 (/home/ehradmin/apphr)'),
+        booleanParam(name: 'DEPLOY_RESTAPI', defaultValue: true, description: 'API(RestAPI) 모듈 배포 (/home/ehradmin/restapi)')
+    ])
+])
+
+node {
+    stage('Clone repository') {
+        checkout scm
+    }
+
+    stage('Environment') {
+        sh 'chmod 755 ./gradlew'
+        sh 'java -version'
+        sh './gradlew --version'
+    }
+
+    stage('Ready') {
+        echo "> 배포 모드 세팅 완료"
+    }
+
+    stage('Build Modules') {
+        sh './gradlew clean'
+
+        if (params.DEPLOY_THYMELEAF) {
+            echo ">> 화면(Thymeleaf) 모듈 빌드 시작..."
+            sh './gradlew :ustra-hr-system-thymeleaf:bootWar'
+        }
+
+        if (params.DEPLOY_RESTAPI) {
+            echo ">> API(RestAPI) 모듈 빌드 시작..."
+            sh './gradlew :ustra-hr-system-restapi:bootJar'
+        }
+    }
+
+    stage('Deploy & Restart') {
+        def sftpCommands = ""
+
+        if (params.DEPLOY_THYMELEAF) {
+            sftpCommands += "cd /home/ehradmin/apphr\n"
+            sftpCommands += "put ustra-hr-system-thymeleaf/build/libs/ustra-hr.war\n"
+        }
+
+        if (params.DEPLOY_RESTAPI) {
+            sftpCommands += "cd /home/ehradmin/restapi\n"
+            sftpCommands += "put ustra-hr-system-restapi/build/libs/ustra-hr-restapi.jar\n"
+        }
+        sftpCommands += "quit\n"
+
+        writeFile file: 'sftp_batch.txt', text: sftpCommands
+
+        sh """#!/bin/bash
+        REMOTE_IP="172.28.39.51"
+        REMOTE_USER_ID="ehradmin"
+
+        echo "> SFTP file upload start"
+        sftp -b sftp_batch.txt \${REMOTE_USER_ID}@\${REMOTE_IP}
+        echo "> SFTP file upload complete!"
+
+        sleep 3
+
+        echo "> 원격 서버 배포 스크립트 실행"
+
+        if [ "${params.DEPLOY_THYMELEAF}" == "true" ]; then
+            echo ">> [Thymeleaf] 배포 스크립트 실행..."
+            ssh \${REMOTE_USER_ID}@\${REMOTE_IP} "cd /home/ehradmin/apphr; ./deploy.sh"
+        fi
+
+        if [ "${params.DEPLOY_RESTAPI}" == "true" ]; then
+            echo ">> [RestAPI] 배포 스크립트 실행..."
+            ssh \${REMOTE_USER_ID}@\${REMOTE_IP} "cd /home/ehradmin/restapi; ./api_deploy.sh"
+        fi
+        """
+    }
+}
