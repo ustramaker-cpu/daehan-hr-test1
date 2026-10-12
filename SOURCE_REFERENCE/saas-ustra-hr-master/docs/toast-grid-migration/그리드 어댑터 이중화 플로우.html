@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>그리드 어댑터 이중화 플로우</title>
+    <style>
+        :root {
+            --ink: #17212b;
+            --muted: #607080;
+            --line: #d9e1e8;
+            --panel: #ffffff;
+            --canvas: #f3f6f9;
+            --toast: #0f766e;
+            --toast-soft: #e7f7f4;
+            --real: #245b7a;
+            --real-soft: #e8f1f7;
+            --accent: #cc6d2d;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            color: var(--ink);
+            background: var(--canvas);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+            line-height: 1.55;
+        }
+        .wrap { max-width: 1180px; margin: 0 auto; padding: 48px 24px 72px; }
+        .hero {
+            padding: 34px 38px;
+            color: #fff;
+            border-radius: 24px;
+            background: linear-gradient(125deg, #18394d 0%, #215c70 56%, #168477 100%);
+            box-shadow: 0 16px 42px rgba(20, 47, 65, .18);
+        }
+        .eyebrow { margin: 0 0 8px; color: #b9e8e1; font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+        h1 { margin: 0; font-size: clamp(28px, 4vw, 46px); line-height: 1.15; letter-spacing: -.04em; }
+        .hero p { max-width: 760px; margin: 16px 0 0; color: #e5f2f5; font-size: 17px; }
+        h2 { margin: 52px 0 18px; font-size: 24px; letter-spacing: -.025em; }
+        h3 { margin: 0 0 8px; font-size: 18px; }
+        .panel { padding: 24px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 7px 20px rgba(33, 54, 71, .05); }
+        .priority { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .priority article { padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: #fbfcfd; }
+        .priority .num { display: inline-grid; place-items: center; width: 26px; height: 26px; margin-bottom: 10px; color: #fff; border-radius: 50%; background: var(--accent); font-size: 13px; font-weight: 800; }
+        code { padding: 2px 6px; color: #174b59; background: #edf5f5; border-radius: 5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; }
+        .flow { display: flex; flex-direction: column; align-items: center; gap: 0; }
+        .step { width: min(720px, 100%); padding: 17px 22px; text-align: center; background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 6px 16px rgba(30, 51, 66, .06); }
+        .step strong { display: block; font-size: 17px; }
+        .step small { color: var(--muted); }
+        .arrow { height: 34px; color: var(--muted); font-size: 24px; line-height: 34px; }
+        .decision { border: 2px solid var(--accent); background: #fffaf5; }
+        .branches { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; width: min(980px, 100%); margin-top: 0; }
+        .branch { padding: 24px; border-radius: 18px; border: 1px solid var(--line); }
+        .branch.toast { background: var(--toast-soft); border-color: #a6ddd5; }
+        .branch.real { background: var(--real-soft); border-color: #b5d0df; }
+        .branch h3 { display: flex; align-items: center; gap: 9px; }
+        .dot { width: 11px; height: 11px; border-radius: 50%; }
+        .toast .dot { background: var(--toast); }
+        .real .dot { background: var(--real); }
+        .branch ol { margin: 12px 0 0; padding-left: 22px; }
+        .branch li + li { margin-top: 7px; }
+        .api { margin-top: 20px; padding: 18px 22px; border-left: 4px solid var(--accent); background: #fffaf5; border-radius: 10px; }
+        .api code { background: transparent; padding: 0; }
+        .columns { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+        .columns ul { margin: 10px 0 0; padding-left: 20px; }
+        .columns li + li { margin-top: 7px; }
+        .files { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 24px; }
+        .file { padding: 12px 14px; background: #f8fafb; border: 1px solid var(--line); border-radius: 10px; font-size: 14px; }
+        footer { margin-top: 44px; color: var(--muted); font-size: 13px; }
+        @media (max-width: 720px) {
+            .wrap { padding: 24px 14px 48px; }
+            .hero { padding: 26px 22px; }
+            .priority, .branches, .columns, .files { grid-template-columns: 1fr; }
+            h2 { margin-top: 38px; }
+        }
+    </style>
+</head>
+<body>
+<main class="wrap">
+    <header class="hero">
+        <p class="eyebrow">Toast Grid migration</p>
+        <h1>그리드 어댑터 이중화 플로우</h1>
+        <p>페이지 요청마다 URL과 YAML 설정을 확인해 Toast Grid 또는 RealGrid 중 하나만 로드하고, 화면 코드는 동일한 <code>UstraRealGrid</code> API를 사용합니다.</p>
+    </header>
+
+    <section>
+        <h2>1. 엔진 선택 우선순위</h2>
+        <div class="priority">
+            <article><span class="num">1</span><h3>URL 파라미터</h3><div><code>?gridEngine=toast</code><br><code>?gridEngine=realgrid</code></div><p>현재 요청 한 건에만 적용합니다.</p></article>
+            <article><span class="num">2</span><h3>YAML 설정</h3><div><code>ustra.grid.engine: toast</code></div><p>URL이 없을 때 전체 기본 엔진입니다.</p></article>
+            <article><span class="num">3</span><h3>기본값</h3><div><code>realgrid</code></div><p>URL과 YAML이 모두 없으면 RealGrid입니다.</p></article>
+        </div>
+    </section>
+
+    <section>
+        <h2>2. 페이지 접근부터 그리드 생성까지</h2>
+        <div class="flow">
+            <div class="step"><strong>브라우저에서 메뉴 페이지 요청</strong><small>/메뉴경로/view</small></div>
+            <div class="arrow">↓</div>
+            <div class="step"><strong>Thymeleaf 레이아웃 적용</strong><small>footerlayout · configlayout · mainconfiglayout</small></div>
+            <div class="arrow">↓</div>
+            <div class="step decision"><strong>gridEngine 결정</strong><small>URL 파라미터 → YAML → 기본값 realgrid</small></div>
+            <div class="arrow">↓</div>
+            <div class="branches">
+                <article class="branch toast">
+                    <h3><span class="dot"></span>Toast 경로</h3>
+                    <ol>
+                        <li>TUI Grid 의존성 로드</li>
+                        <li><code>ustra.toast.grid.js</code> 로 Toast 래퍼 로드</li>
+                        <li><code>ustra.grid.compat.js</code> 로 호환 API 노출</li>
+                        <li>내부 Toast Grid 생성</li>
+                    </ol>
+                </article>
+                <article class="branch real">
+                    <h3><span class="dot"></span>RealGrid 경로</h3>
+                    <ol>
+                        <li><code>ustra.realgrid.js</code> 로 기존 래퍼 로드</li>
+                        <li>RealGrid components·라이선스 로드</li>
+                        <li>기존 RealGrid GridView 생성</li>
+                        <li>호환 어댑터는 로드하지 않음</li>
+                    </ol>
+                </article>
+            </div>
+            <div class="arrow">↓</div>
+            <div class="step"><strong>뷰의 공통 생성 코드 실행</strong><small><code>new UstraRealGrid(...).build()</code></small></div>
+            <div class="arrow">↓</div>
+            <div class="step"><strong>조회 · 정렬 · 편집 · CRUD · 엑셀 · 이벤트</strong><small>RealGrid 계약을 유지한 채 선택된 엔진으로 동작</small></div>
+        </div>
+    </section>
+
+    <section>
+        <h2>3. 어댑터가 하는 일</h2>
+        <div class="columns">
+            <div class="panel"><h3>Toast 선택 시 공통 처리</h3><ul><li><code>UstraRealGrid</code>와 <code>UstraRealGridColumn</code> 이름으로 화면 API 유지</li><li>RealGrid식 컬럼·에디터·렌더러를 Toast 옵션으로 변환</li><li>행 상태, 포커스, 정렬, 병합, 저장·삭제 데이터 형식을 보정</li><li>Toast 이벤트를 화면이 기대하는 RealGrid 이벤트 형태로 중계</li></ul></div>
+            <div class="panel"><h3>공통화하기 어려운 뷰 예외</h3><ul><li>상세 조회·하위 그리드와 결합된 포커스 초기화</li><li>Toast의 <code>beforeChange</code>와 RealGrid 커밋 시점 차이</li><li>조직도·팝업·셀렉트·iframe 높이 등 메뉴별 DOM 처리</li><li><code>getToastGrid()</code> 존재 여부를 확인한 Toast 전용 분기</li></ul></div>
+        </div>
+    </section>
+
+    <section>
+        <h2>4. 직접 링크로 엔진 확인하기</h2>
+        <div class="panel">
+            <p>아래와 같이 같은 메뉴에 <code>gridEngine</code>을 붙여 엔진을 즉시 비교할 수 있습니다.</p>
+            <div class="api"><strong>GET 샘플</strong><br><code>http://localhost:8081/system/standard/view?gridEngine=toast</code></div>
+            <p>RealGrid 비교가 필요하면 마지막 값을 <code>realgrid</code>로 바꿉니다. 두 엔진은 동시에 로드되지 않으며, Toast 경로에서 RealGrid 자원이 함께 발견되면 어댑터가 초기화를 중단합니다.</p>
+        </div>
+    </section>
+
+    <section>
+        <h2>5. 기준 파일</h2>
+        <div class="files">
+            <div class="file">application.yml — 기본 엔진 설정</div>
+            <div class="file">layout/footerlayout.html — 공통 자원 택일 로드</div>
+            <div class="file">layout/configlayout.html — RealGrid 라이선스 분기</div>
+            <div class="file">layout/mainconfiglayout.html — 메인 설정 레이아웃 분기</div>
+            <div class="file">ustra.toast.grid.js — Toast 래퍼</div>
+            <div class="file">ustra.grid.compat.js — RealGrid 호환 어댑터</div>
+        </div>
+    </section>
+
+    <footer>기준: 현재 저장소의 YAML 설정 및 Thymeleaf 레이아웃 로드 조건</footer>
+</main>
+</body>
+</html>

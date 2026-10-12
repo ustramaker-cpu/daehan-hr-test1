@@ -1,0 +1,18 @@
+---
+spring:
+  config:
+    activate:
+      on-profile: data
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: none
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    properties:
+      hibernate:
+        format_sql: true
+
+mybatis:
+  config-location: classpath:sqlmap/sqlmap-config.xml
+  mapper-locations: classpath*:sqlmap/mappers/**/*.xml
