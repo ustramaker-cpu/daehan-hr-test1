@@ -1,0 +1,59 @@
+node {
+    def checkedSystem = params.system
+    def checkedBatch = params.batch
+
+    stage('Clone repository') {
+        checkout scm
+    }
+
+    stage('Environment') {
+        sh 'chmod 755 ./gradlew'
+    }
+
+    stage('Ready') {
+        if(checkedSystem){
+            sh "echo system deploy start"
+        }
+        if(checkedBatch){
+            sh "echo batch deploy start"
+        }
+    }
+
+    stage('Build Jar') {
+        sh './gradlew clean'
+        if(checkedSystem){
+            sh './gradlew :itsm-system-thymeleaf:bootJar'
+        }
+        if(checkedBatch){
+            sh './gradlew :itsm-system-batch:bootJar'
+        }
+    }
+
+    stage('Build docker image') {
+        if(checkedSystem){
+            systemApp = docker.build("632638147803.dkr.ecr.ap-northeast-2.amazonaws.com/itsm-prod-repo","--build-arg ENVIRONMENT=core,web,api,workflow,prod ./itsm-system-thymeleaf")
+        }
+        if(checkedBatch){
+            batchApp = docker.build("632638147803.dkr.ecr.ap-northeast-2.amazonaws.com/itsm-prod-batch","--build-arg ENVIRONMENT=core,web,api,workflow,prod ./itsm-system-batch")
+        }
+    }
+
+    stage('Push image') {
+       if(checkedSystem){
+            docker.withRegistry('https://632638147803.dkr.ecr.ap-northeast-2.amazonaws.com/itsm-prod-repo', 'ecr:ap-northeast-2:ecr-credentials') {
+                systemApp.push("${env.BUILD_NUMBER}")
+                systemApp.push("latest")
+            }
+        }
+        if(checkedBatch){
+            docker.withRegistry('https://632638147803.dkr.ecr.ap-northeast-2.amazonaws.com/itsm-prod-batch', 'ecr:ap-northeast-2:ecr-credentials') {
+                batchApp.push("${env.BUILD_NUMBER}")
+                batchApp.push("latest")
+            }
+        }
+    }
+
+    stage('Remove image') {
+        sh 'docker system prune -a -f'
+    }
+}
