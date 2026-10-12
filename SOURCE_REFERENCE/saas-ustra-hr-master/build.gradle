@@ -1,4 +1,4 @@
-```groovy
+groovy
 buildscript {
     ext {
         springBootVersion = '3.5.16'
