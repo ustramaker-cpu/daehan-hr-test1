@@ -1,0 +1,42 @@
+{
+  "as_of_kst": "2026-10-12",
+  "increment": "INC-00",
+  "source_origin": "saas-ustra-hr-master.zip",
+  "source_sha256": "0681abdd0a320315e0a3eea49468bd524f0faa131f47680eff952c9538a4b026",
+  "source_zip_members": 9048,
+  "source_extracted_files": 7375,
+  "source_modules_count": 13,
+  "boot_source": "3.5.16",
+  "boot_4_1_1": "UNAPPROVED_HOLD",
+  "java": "21",
+  "gradle": "8.14.5",
+  "source_integrity": "PASS",
+  "safe_extract": "PASS",
+  "preflight_tests": "4_PASS",
+  "wrapper_invoked": "YES",
+  "wrapper_exit_code": 1,
+  "wrapper_error": "java.net.UnknownHostException: services.gradle.org",
+  "execution_kit_compile_script_invoked": "YES",
+  "execution_kit_exit_code": 20,
+  "compile_five_modules": "NOT_RUN_ENV_BLOCKED",
+  "bootWar": "NOT_RUN_ENV_BLOCKED",
+  "bootRun": "NOT_RUN",
+  "db_test": "NOT_RUN",
+  "security_test": "NOT_RUN",
+  "hr3_candidate_merged_count": 0,
+  "known_missing_elements": [
+    "Gradle 8.14.5 distribution/cached/mirror",
+    "approved internal Maven artifacts",
+    "Jasypt and local profile verification",
+    "MariaDB 11.4 test schema and connection",
+    "approved test identities and corporate/organization scope",
+    "outbound dependency sandbox review",
+    "deployment script/target"
+  ],
+  "scope": {
+    "hrp": "EXCLUDED",
+    "payroll_policy": "NOT_CHANGED",
+    "attendance_policy": "NOT_CHANGED"
+  },
+  "next": "Developer Gradle distribution & private repository -> 5 module compile -> web bootWar -> isolated test boot"
+}

@@ -1,0 +1,41 @@
+{
+  "work": "DFNE-HR INC-00",
+  "time_utc": "2026-10-12T04:09:41+00:00",
+  "source_name": "saas-ustra-hr-master.zip",
+  "source_sha256": "0681abdd0a320315e0a3eea49468bd524f0faa131f47680eff952c9538a4b026",
+  "source_sha_matches_baseline": true,
+  "actions": {
+    "compile": "NOT_RUN",
+    "boot": "NOT_RUN",
+    "db": "NOT_RUN"
+  },
+  "archive_errors": [],
+  "zip_members_total": 9048,
+  "source_inventory": {
+    "required_files_missing": [],
+    "boot_version_declared": "3.5.16",
+    "gradle_distribution_version": "8.14.5",
+    "included_modules_count": 13,
+    "module_gradle_count": 13,
+    "module_gradle_names": [
+      "framework-core",
+      "framework-data",
+      "framework-security",
+      "framework-security-jwt",
+      "framework-web",
+      "ustra-hr-system-api",
+      "ustra-hr-system-auth",
+      "ustra-hr-system-core",
+      "ustra-hr-system-pay",
+      "ustra-hr-system-pay-yeta",
+      "ustra-hr-system-report",
+      "ustra-hr-system-restapi",
+      "ustra-hr-system-thymeleaf"
+    ],
+    "needs_secure_config_review": true,
+    "sensitive_filename_candidates_count": 1,
+    "external_dependencies_not_bundled": true,
+    "db_schema_not_provided_or_verified": true,
+    "hr3_candidate_not_auto_merged": true
+  }
+}
