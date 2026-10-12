@@ -1,0 +1,28 @@
+bootJar.enabled = false
+jar.enabled = true
+
+dependencies {
+    implementation project(':framework-core')
+    implementation project(':ustra-hr-system-core')
+
+    implementation 'org.springframework.security:spring-security-core'
+    implementation 'org.springframework.security:spring-security-web'
+    implementation 'org.springframework.security:spring-security-config'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+
+    implementation 'com.google.code.gson:gson'
+    implementation 'org.mariadb.jdbc:mariadb-java-client'
+
+    implementation group: 'org.springframework.boot', name: 'spring-boot-starter-cache'
+    // Jakarta EE 대응 배포본(classifier: jakarta) 사용
+    implementation group: 'org.ehcache', name: 'ehcache', version: '3.10.8', classifier: 'jakarta'
+    implementation group: 'javax.cache', name: 'cache-api'
+
+    // MyBatis plugin (sqlmap-config.xml 의 OffsetLimitInterceptor)
+    implementation group: 'com.github.miemiedev', name: 'mybatis-paginator', version: '1.2.17'
+
+    // SQL 로깅 (jdbc:log4jdbc:... URL)
+    implementation group: 'org.bgee.log4jdbc-log4j2', name: 'log4jdbc-log4j2-jdbc4.1', version: '1.16'
+
+    implementation group: 'com.navercorp.lucy', name: 'lucy-xss', version: '1.6.3'
+}
