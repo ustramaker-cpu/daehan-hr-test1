@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>U.STRA SaaS HR — 서비스 플로우 아키텍처</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #f0f2f5;
+    --text: #1b1f27;
+    --text-dim: #5b6472;
+    --border: #dde1e7;
+    --line: #aab2be;
+
+    --user: #6b7a8f;
+    --user-bg: #eef1f5;
+    --fe: #3b6fd4;
+    --fe-bg: #e9f0fd;
+    --be: #1f8a63;
+    --be-bg: #e6f4ee;
+    --db: #b6761c;
+    --db-bg: #fbf1de;
+    --ext: #8a5cc4;
+    --ext-bg: #f2ecfb;
+    --shadow: 0 1px 2px rgba(16,24,40,.06), 0 6px 18px rgba(16,24,40,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12151a;
+      --surface: #1a1e25;
+      --surface-2: #21262f;
+      --text: #e7eaef;
+      --text-dim: #9aa4b2;
+      --border: #2d333d;
+      --line: #4a5361;
+
+      --user: #a3b1c2;
+      --user-bg: #232830;
+      --fe: #7aa6f5;
+      --fe-bg: #1b2434;
+      --be: #59c79b;
+      --be-bg: #16261f;
+      --db: #e0ad5c;
+      --db-bg: #2a2214;
+      --ext: #b794e8;
+      --ext-bg: #241c33;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12151a; --surface: #1a1e25; --surface-2: #21262f;
+    --text: #e7eaef; --text-dim: #9aa4b2; --border: #2d333d; --line: #4a5361;
+    --user: #a3b1c2; --user-bg: #232830;
+    --fe: #7aa6f5; --fe-bg: #1b2434;
+    --be: #59c79b; --be-bg: #16261f;
+    --db: #e0ad5c; --db-bg: #2a2214;
+    --ext: #b794e8; --ext-bg: #241c33;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard",
+                 "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+    line-height: 1.6;
+    font-size: 15px;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 16px 80px; }
+
+  header.page { margin-bottom: 36px; }
+  header.page h1 { font-size: 26px; margin: 0 0 8px; letter-spacing: -.02em; }
+  header.page p { margin: 0; color: var(--text-dim); font-size: 14px; }
+  .meta { margin-top: 12px; font-size: 12.5px; color: var(--text-dim); }
+  .meta code { background: var(--surface-2); padding: 1px 6px; border-radius: 4px; }
+
+  section { margin: 0 0 44px; }
+  h2 {
+    font-size: 17px; margin: 0 0 4px; letter-spacing: -.01em;
+    display: flex; align-items: center; gap: 10px;
+  }
+  h2 .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 6px; flex: none;
+    background: var(--surface-2); color: var(--text-dim);
+    font-size: 12px; font-weight: 700;
+  }
+  h2 + .sub { margin: 0 0 18px 32px; color: var(--text-dim); font-size: 13.5px; }
+
+  /* ---------- 4-lane 아키텍처 ---------- */
+  .lanes {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    align-items: stretch;
+  }
+  .lane {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 0 0 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .lane > .head {
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  .lane > .head .k { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; opacity: .75; }
+  .lane > .head .t { font-size: 15px; font-weight: 700; margin-top: 2px; }
+  .lane > .head .d { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .lane.user  { border-top: 3px solid var(--user); } .lane.user  .head { background: var(--user-bg); } .lane.user  .head .k { color: var(--user); }
+  .lane.fe    { border-top: 3px solid var(--fe); }   .lane.fe    .head { background: var(--fe-bg); }   .lane.fe    .head .k { color: var(--fe); }
+  .lane.be    { border-top: 3px solid var(--be); }   .lane.be    .head { background: var(--be-bg); }   .lane.be    .head .k { color: var(--be); }
+  .lane.db    { border-top: 3px solid var(--db); }   .lane.db    .head { background: var(--db-bg); }   .lane.db    .head .k { color: var(--db); }
+
+  .lane ul { list-style: none; margin: 0; padding: 0 14px; }
+  .lane li {
+    font-size: 12.8px; line-height: 1.5;
+    padding: 7px 0 7px 14px; position: relative;
+    border-top: 1px dashed var(--border);
+  }
+  .lane li:first-child { border-top: 0; }
+  .lane li::before {
+    content: ""; position: absolute; left: 2px; top: 14px;
+    width: 5px; height: 5px; border-radius: 50%; background: var(--line);
+  }
+  .lane.user li::before { background: var(--user); }
+  .lane.fe li::before   { background: var(--fe); }
+  .lane.be li::before   { background: var(--be); }
+  .lane.db li::before   { background: var(--db); }
+  .lane li b { font-weight: 700; }
+  .lane li span { color: var(--text-dim); display: block; font-size: 11.8px; }
+
+  .flowbar {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  .flowbar .seg {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 9px 12px; font-size: 12px; color: var(--text-dim);
+  }
+  .flowbar .seg b { color: var(--text); display: block; font-size: 12.3px; }
+  .flowbar .seg.req b::before { content: "→ "; color: var(--fe); }
+  .flowbar .seg.res b::before { content: "← "; color: var(--be); }
+
+  /* ---------- 서버 내부 파이프라인 ---------- */
+  .pipe { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+  .pipe .step {
+    flex: 1 1 150px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid var(--be);
+    border-radius: 10px; padding: 10px 12px; box-shadow: var(--shadow);
+    position: relative;
+  }
+  .pipe .step .n { font-size: 10.5px; font-weight: 700; color: var(--be); letter-spacing: .06em; }
+  .pipe .step .t { font-size: 13px; font-weight: 700; margin-top: 2px; }
+  .pipe .step .d { font-size: 11.6px; color: var(--text-dim); margin-top: 3px; line-height: 1.45; }
+  .pipe .step.db-step { border-left-color: var(--db); } .pipe .step.db-step .n { color: var(--db); }
+  .pipe .step.fe-step { border-left-color: var(--fe); } .pipe .step.fe-step .n { color: var(--fe); }
+
+  /* ---------- SVG 시퀀스 ---------- */
+  .figure {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: var(--shadow); padding: 8px 4px;
+    overflow-x: auto;
+  }
+  .figure svg { display: block; min-width: 720px; width: 100%; height: auto; }
+  .figure .cap { font-size: 12px; color: var(--text-dim); padding: 6px 14px 8px; }
+  svg text { font-family: inherit; }
+  .ll-line { stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 5; }
+  .arrow { stroke: var(--text-dim); stroke-width: 1.4; fill: none; }
+  .arrow.ret { stroke-dasharray: 5 4; opacity: .85; }
+  .arrow.self { stroke: var(--text-dim); stroke-width: 1.4; fill: none; }
+  .alabel { font-size: 11.5px; fill: var(--text); }
+  .alabel.dim { fill: var(--text-dim); }
+  .llbox { fill: var(--surface-2); stroke: var(--border); }
+  .lltext { font-size: 12px; font-weight: 700; fill: var(--text); }
+  .llsub { font-size: 10.5px; fill: var(--text-dim); }
+
+  /* ---------- 표 ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--surface);
+          border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--surface-2); font-size: 12px; letter-spacing: .02em; color: var(--text-dim); font-weight: 700; }
+  tr:last-child td { border-bottom: 0; }
+  td code, li code, p code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+         background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+
+  /* ---------- 외부 연동 ---------- */
+  .ext-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+  .ext-card {
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--ext);
+    border-radius: 10px; padding: 11px 13px; box-shadow: var(--shadow);
+  }
+  .ext-card .t { font-weight: 700; font-size: 13px; }
+  .ext-card .d { font-size: 11.8px; color: var(--text-dim); margin-top: 3px; }
+
+  .note {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; font-size: 12.8px; color: var(--text-dim);
+  }
+  .note b { color: var(--text); }
+  .note ul { margin: 6px 0 0; padding-left: 18px; }
+  .note li { margin: 3px 0; }
+
+  footer.page { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--border);
+                font-size: 12px; color: var(--text-dim); }
+
+  @media (max-width: 900px) {
+    .lanes, .flowbar { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 560px) {
+    .wrap { padding: 28px 16px 60px; }
+    .lanes, .flowbar { grid-template-columns: 1fr; }
+    h2 + .sub { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <h1>U.STRA SaaS HR — 서비스 플로우 아키텍처</h1>
+    <p>사용자 → 프론트엔드 → 서버 → DB 로 이어지는 요청·응답 경로를 계층별로 정리한 문서다.</p>
+    <div class="meta">
+      대상 산출물 <code>ustra-hr.jar</code> (Thymeleaf 웹, :8081) · <code>ustra-hr-restapi.jar</code> (REST API, :8083)
+      &nbsp;|&nbsp; Spring Boot 3.5.16 / Java 21 / MariaDB
+    </div>
+  </header>
+
+  <!-- ============ 1. 전체 구조 ============ -->
+  <section>
+    <h2><span class="num">1</span> 전체 계층 구조</h2>
+    <p class="sub">하나의 WAS 안에서 화면(SSR)과 업무 API(JSON)를 함께 제공하는 모놀리식 구조다.</p>
+
+    <div class="lanes">
+
+      <div class="lane user">
+        <div class="head">
+          <div class="k">User</div>
+          <div class="t">사용자</div>
+          <div class="d">인사·급여 담당자 / 일반 사원</div>
+        </div>
+        <ul>
+          <li><b>인사 담당자</b><span>사원정보·발령·인사기록 관리</span></li>
+          <li><b>급여 담당자</b><span>급여계산·지급대장·연말정산·4대보험</span></li>
+          <li><b>일반 사원</b><span>셀프서비스(empmenu)·근태 신청·증명서</span></li>
+          <li><b>시스템 관리자</b><span>공통코드·메뉴·권한(Role) 관리</span></li>
+          <li><b>접속 경로</b><span>데스크톱 브라우저 / 모바일 화면(mbl)</span></li>
+        </ul>
+      </div>
+
+      <div class="lane fe">
+        <div class="head">
+          <div class="k">Frontend</div>
+          <div class="t">프론트엔드 (브라우저)</div>
+          <div class="d">Thymeleaf SSR + jQuery 기반 MPA</div>
+        </div>
+        <ul>
+          <li><b>MDI 탭 셸</b><span>defaultlayout → sidelayout 이 좌측 메뉴·탭을 만들고 업무 화면을 <code>iframe</code> 으로 띄운다</span></li>
+          <li><b>업무 화면</b><span>framelayout 을 decorate 한 Thymeleaf 템플릿 (약 1,490개)</span></li>
+          <li><b>번들</b><span>webpack 산출물 <code>desktop.js</code> / <code>desktop.css</code> (커밋되어 있음)</span></li>
+          <li><b>그리드</b><span>TOAST UI Grid ← RealGrid 호환 어댑터(<code>ustra.grid.compat.js</code>). 엔진은 서버가 택일 로드</span></li>
+          <li><b>통신</b><span>jQuery <code>$.ajax</code> / <code>$.get</code> / <code>$.post</code> + 공통 <code>Ajax</code> 유틸(스피너·프리필터)</span></li>
+          <li><b>기타</b><span>모달·데이트피커·엑셀(SheetJS 동적 로드)·테마(localStorage <code>THEME</code>)</span></li>
+        </ul>
+      </div>
+
+      <div class="lane be">
+        <div class="head">
+          <div class="k">Server</div>
+          <div class="t">서버 (WAS)</div>
+          <div class="d">Spring Boot 3.5 / Java 21 · 내장 Tomcat</div>
+        </div>
+        <ul>
+          <li><b>서블릿 필터</b><span><code>LogFilter</code>(최우선) → Lucy XSS Filter</span></li>
+          <li><b>Spring Security</b><span><code>UstraJwtAuthenticationFilter</code> → SecurityContext → <code>AuthorizationChecker</code> 동적 권한 판정</span></li>
+          <li><b>Controller</b><span><code>@Controller</code>(<code>*Web</code>) → Thymeleaf 뷰 / <code>@RestController</code>(<code>/api/**</code>) → JSON</span></li>
+          <li><b>Service</b><span><code>@Service @Transactional</code> — 업무 규칙·검증·트랜잭션 경계</span></li>
+          <li><b>영속 계층</b><span>MyBatis <code>@Mapper</code> + <code>sqlmap/mappers/**/*.xml</code> (주력) · 일부 Spring Data JPA Repository</span></li>
+          <li><b>공통 기능</b><span>파일·메일·엑셀·스케줄러·Ehcache·예외 ControllerAdvice</span></li>
+        </ul>
+      </div>
+
+      <div class="lane db">
+        <div class="head">
+          <div class="k">Database</div>
+          <div class="t">DB / 저장소</div>
+          <div class="d">MariaDB <code>uhrmsdb</code></div>
+        </div>
+        <ul>
+          <li><b>커넥션</b><span>HikariCP → <code>log4jdbc</code> DriverSpy → MariaDB (SQL 로깅 경유)</span></li>
+          <li><b>업무 테이블</b><span>인사·급여·근태·복리후생·교육·조직 등 전 도메인</span></li>
+          <li><b>인증 저장소</b><span>JWT Access/Refresh 토큰 스토어 — 토큰이 DB 에 없으면 즉시 무효 처리</span></li>
+          <li><b>로그</b><span>로그인 로그 · 접속 로그 · 오류 로그</span></li>
+          <li><b>파일 저장</b><span>DB 메타 + 파일시스템 경로(프로파일별로 다름)</span></li>
+          <li><b>설정 보안</b><span>접속 정보는 Jasypt 로 암호화해 보관</span></li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="flowbar">
+      <div class="seg req"><b>요청</b>사용자 조작(조회·저장 버튼)</div>
+      <div class="seg req"><b>요청</b>HTTP GET/POST · 쿠키 토큰 동봉</div>
+      <div class="seg res"><b>응답</b>HTML(Thymeleaf) 또는 JSON</div>
+      <div class="seg res"><b>응답</b>ResultSet → DTO/CamelCaseMap</div>
+    </div>
+  </section>
+
+  <!-- ============ 2. 서버 내부 파이프라인 ============ -->
+  <section>
+    <h2><span class="num">2</span> 요청 한 건이 지나는 경로</h2>
+    <p class="sub">브라우저가 보낸 HTTP 요청 하나가 DB 에 닿았다가 돌아오기까지의 단계다.</p>
+
+    <div class="pipe">
+      <div class="step fe-step">
+        <div class="n">STEP 0 · 브라우저</div>
+        <div class="t">$.ajax / 폼 전송</div>
+        <div class="d">공통 <code>Ajax</code> 프리필터가 스피너를 제어하고, XHR 에는 <code>X-Requested-With</code> 헤더가 붙는다.</div>
+      </div>
+      <div class="step">
+        <div class="n">STEP 1</div>
+        <div class="t">LogFilter</div>
+        <div class="d">최우선 순위 필터. 요청 단위 접속 로그를 남긴다.</div>
+      </div>
+      <div class="step">
+        <div class="n">STEP 2</div>
+        <div class="t">Lucy XSS Filter</div>
+        <div class="d">파라미터 XSS 이스케이프. 룰은 <code>lucy-xss-servlet-filter-rule.xml</code>.</div>
+      </div>
+      <div class="step">
+        <div class="n">STEP 3</div>
+        <div class="t">JWT 인증 필터</div>
+        <div class="d">쿠키 토큰 검증 → 서버명 대조 → DB 토큰 존재 확인 → SecurityContext 설정.</div>
+      </div>
+      <div class="step">
+        <div class="n">STEP 4</div>
+        <div class="t">권한 판정</div>
+        <div class="d">정적 권한 목록 + <code>AuthorizationChecker</code> 의 동적(메뉴/프로그램) 권한 검사.</div>
+      </div>
+      <div class="step">
+        <div class="n">STEP 5</div>
+        <div class="t">DispatcherServlet → Controller</div>
+        <div class="d">인터셉터(Referrer·로그인설정) 통과 후, 쿼리스트링·폼을 DTO 로 바인딩. 화면이면 <code>*Web</code>, 데이터면 <code>*RestController</code>.</div>
+      </div>
+      <div class="step">
+        <div class="n">STEP 6</div>
+        <div class="t">Service (@Transactional)</div>
+        <div class="d">업무 규칙 적용. 트랜잭션은 이 계층에서 시작·종료된다.</div>
+      </div>
+      <div class="step">
+        <div class="n">STEP 7</div>
+        <div class="t">Mapper / Repository</div>
+        <div class="d">MyBatis 인터페이스 ↔ <code>sqlmap</code> XML 의 SQL. 일부 기능은 JPA Repository.</div>
+      </div>
+      <div class="step db-step">
+        <div class="n">STEP 8 · DB</div>
+        <div class="t">HikariCP → MariaDB</div>
+        <div class="d">log4jdbc 를 거쳐 실제 SQL 실행. 결과는 <code>CamelCaseMap</code>/DTO 로 매핑되어 역순으로 돌아간다.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. 인증 시퀀스 ============ -->
+  <section>
+    <h2><span class="num">3</span> 로그인 · 인증 흐름 (JWT)</h2>
+    <p class="sub">폼 로그인으로 발급한 JWT 를 쿠키에 담고, 이후 모든 요청을 필터가 검증한다. 토큰은 DB 에도 저장되어 서버 측에서 즉시 무효화할 수 있다.</p>
+
+    <div class="figure">
+      <svg viewBox="0 0 980 470" role="img" aria-label="로그인 및 JWT 인증 시퀀스 다이어그램">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--text-dim)"/>
+          </marker>
+        </defs>
+        <g color="var(--text-dim)">
+
+          <!-- lifeline heads -->
+          <rect class="llbox" x="15"  y="12" width="150" height="40" rx="8"/>
+          <text class="lltext" x="90"  y="30" text-anchor="middle">사용자</text>
+          <text class="llsub"  x="90"  y="44" text-anchor="middle">브라우저 화면</text>
+
+          <rect class="llbox" x="255" y="12" width="150" height="40" rx="8"/>
+          <text class="lltext" x="330" y="30" text-anchor="middle">프론트엔드</text>
+          <text class="llsub"  x="330" y="44" text-anchor="middle">login.html / 쿠키</text>
+
+          <rect class="llbox" x="500" y="12" width="180" height="40" rx="8"/>
+          <text class="lltext" x="590" y="30" text-anchor="middle">서버 — Spring Security</text>
+          <text class="llsub"  x="590" y="44" text-anchor="middle">인증 · JWT 발급</text>
+
+          <rect class="llbox" x="785" y="12" width="150" height="40" rx="8"/>
+          <text class="lltext" x="860" y="30" text-anchor="middle">DB</text>
+          <text class="llsub"  x="860" y="44" text-anchor="middle">사용자 · 권한 · 토큰</text>
+
+          <!-- lifelines -->
+          <line class="ll-line" x1="90"  y1="52" x2="90"  y2="450"/>
+          <line class="ll-line" x1="330" y1="52" x2="330" y2="450"/>
+          <line class="ll-line" x1="590" y1="52" x2="590" y2="450"/>
+          <line class="ll-line" x1="860" y1="52" x2="860" y2="450"/>
+
+          <!-- 1 -->
+          <text class="alabel" x="210" y="84"  text-anchor="middle">① ID / 비밀번호 입력</text>
+          <line class="arrow" x1="90" y1="92" x2="326" y2="92" marker-end="url(#ah)"/>
+          <!-- 2 -->
+          <text class="alabel" x="460" y="128" text-anchor="middle">② POST /login (formLogin)</text>
+          <line class="arrow" x1="330" y1="136" x2="586" y2="136" marker-end="url(#ah)"/>
+          <!-- 3 self -->
+          <path class="arrow self" d="M590,170 h44 v26 h-40" marker-end="url(#ah)"/>
+          <text class="alabel dim" x="646" y="187">③ Sha256Encoder + AuthenticationProvider 로 자격 검증</text>
+          <!-- 4 -->
+          <text class="alabel" x="725" y="222" text-anchor="middle">④ 사용자 · 권한(Role) 조회</text>
+          <line class="arrow" x1="590" y1="230" x2="856" y2="230" marker-end="url(#ah)"/>
+          <!-- 5 -->
+          <text class="alabel dim" x="725" y="258" text-anchor="middle">⑤ UstraUserDetails</text>
+          <line class="arrow ret" x1="860" y1="266" x2="594" y2="266" marker-end="url(#ah)"/>
+          <!-- 6 self -->
+          <path class="arrow self" d="M590,292 h44 v26 h-40" marker-end="url(#ah)"/>
+          <text class="alabel dim" x="646" y="309">⑥ Access / Refresh 토큰 발급 → 토큰 스토어(DB) 저장</text>
+          <!-- 7 -->
+          <text class="alabel" x="460" y="344" text-anchor="middle">⑦ Set-Cookie(토큰) + 메인 화면 이동</text>
+          <line class="arrow ret" x1="590" y1="352" x2="334" y2="352" marker-end="url(#ah)"/>
+          <!-- 8 -->
+          <text class="alabel" x="210" y="380" text-anchor="middle">⑧ 메인 · MDI 탭 표시</text>
+          <line class="arrow ret" x1="330" y1="388" x2="94" y2="388" marker-end="url(#ah)"/>
+          <!-- 9 -->
+          <text class="alabel" x="460" y="416" text-anchor="middle">⑨ 이후 모든 요청 — 쿠키 토큰 자동 동봉</text>
+          <line class="arrow" x1="330" y1="424" x2="586" y2="424" marker-end="url(#ah)"/>
+        </g>
+      </svg>
+      <div class="cap">
+        토큰이 만료되면 필터가 Refresh 토큰으로 재발급을 시도한다. 재발급도 실패하면 — Ajax 요청은 <b>HTTP 419</b> 를 받고, 일반 요청은 로그인 화면으로 이동한다.
+        토큰의 <code>serverName</code> 이 서버 설정과 다르거나 DB 토큰 스토어에 없으면 즉시 로그아웃 처리된다.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4. 조회/저장 시퀀스 ============ -->
+  <section>
+    <h2><span class="num">4</span> 업무 화면 — 조회 · 저장 흐름</h2>
+    <p class="sub">업무 화면 대부분은 그리드 중심이다. 조회는 GET, 저장은 변경분(C/U/D)을 한 번에 POST 하는 방식이다.</p>
+
+    <div class="figure">
+      <svg viewBox="0 0 980 860" role="img" aria-label="그리드 조회 및 저장 시퀀스 다이어그램">
+        <defs>
+          <marker id="ah3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--text-dim)"/>
+          </marker>
+        </defs>
+        <g color="var(--text-dim)">
+          <!-- lifeline heads -->
+          <rect class="llbox" x="15"  y="12" width="150" height="46" rx="8"/>
+          <text class="lltext" x="90"  y="30" text-anchor="middle">업무 화면</text>
+          <text class="llsub"  x="90"  y="44" text-anchor="middle">iframe · 그리드</text>
+
+          <rect class="llbox" x="215" y="12" width="150" height="46" rx="8"/>
+          <text class="lltext" x="290" y="30" text-anchor="middle">프론트 공통</text>
+          <text class="llsub"  x="290" y="44" text-anchor="middle">Ajax 유틸 · 어댑터</text>
+
+          <rect class="llbox" x="410" y="12" width="160" height="46" rx="8"/>
+          <text class="lltext" x="490" y="30" text-anchor="middle">Controller</text>
+          <text class="llsub"  x="490" y="44" text-anchor="middle">@RestController</text>
+
+          <rect class="llbox" x="615" y="12" width="150" height="46" rx="8"/>
+          <text class="lltext" x="690" y="30" text-anchor="middle">Service</text>
+          <text class="llsub"  x="690" y="44" text-anchor="middle">@Transactional</text>
+
+          <rect class="llbox" x="815" y="12" width="150" height="46" rx="8"/>
+          <text class="lltext" x="890" y="30" text-anchor="middle">Mapper → DB</text>
+          <text class="llsub"  x="890" y="44" text-anchor="middle">MyBatis · MariaDB</text>
+
+          <!-- lifelines -->
+          <line class="ll-line" x1="90"  y1="58" x2="90"  y2="840"/>
+          <line class="ll-line" x1="290" y1="58" x2="290" y2="840"/>
+          <line class="ll-line" x1="490" y1="58" x2="490" y2="840"/>
+          <line class="ll-line" x1="690" y1="58" x2="690" y2="840"/>
+          <line class="ll-line" x1="890" y1="58" x2="890" y2="840"/>
+
+          <!-- 조회 구간 라벨 -->
+          <text class="llsub" x="20" y="86" font-weight="700">조회</text>
+
+          <text class="alabel" x="190" y="104" text-anchor="middle">① 조회 버튼 → grid.load(url, param)</text>
+          <line class="arrow" x1="90" y1="112" x2="286" y2="112" marker-end="url(#ah3)"/>
+
+          <text class="alabel" x="390" y="148" text-anchor="middle">② $.ajax GET /api/…</text>
+          <line class="arrow" x1="290" y1="156" x2="486" y2="156" marker-end="url(#ah3)"/>
+
+          <path class="arrow self" d="M490,182 h40 v24 h-36" marker-end="url(#ah3)"/>
+          <text class="alabel dim" x="542" y="198">③ 필터 체인: 로그 → XSS → JWT 인증 → 권한 판정</text>
+
+          <text class="alabel" x="590" y="230" text-anchor="middle">④ DTO 바인딩 후 서비스 호출</text>
+          <line class="arrow" x1="490" y1="238" x2="686" y2="238" marker-end="url(#ah3)"/>
+
+          <text class="alabel" x="790" y="266" text-anchor="middle">⑤ Mapper → sqlmap XML SQL 실행</text>
+          <line class="arrow" x1="690" y1="274" x2="886" y2="274" marker-end="url(#ah3)"/>
+
+          <text class="alabel dim" x="790" y="302" text-anchor="middle">⑥ ResultSet → CamelCaseMap</text>
+          <line class="arrow ret" x1="890" y1="310" x2="694" y2="310" marker-end="url(#ah3)"/>
+
+          <text class="alabel dim" x="590" y="338" text-anchor="middle">⑦ List&lt;CamelCaseMap&gt;</text>
+          <line class="arrow ret" x1="690" y1="346" x2="494" y2="346" marker-end="url(#ah3)"/>
+
+          <text class="alabel dim" x="390" y="374" text-anchor="middle">⑧ JSON 응답</text>
+          <line class="arrow ret" x1="490" y1="382" x2="294" y2="382" marker-end="url(#ah3)"/>
+
+          <text class="alabel dim" x="190" y="410" text-anchor="middle">⑨ 그리드 렌더 (TOAST UI Grid)</text>
+          <line class="arrow ret" x1="290" y1="418" x2="94" y2="418" marker-end="url(#ah3)"/>
+
+          <!-- 구분선 -->
+          <line x1="15" y1="442" x2="965" y2="442" stroke="var(--border)" stroke-width="1"/>
+          <text class="llsub" x="20" y="470" font-weight="700">저장</text>
+
+          <text class="alabel" x="190" y="488" text-anchor="middle">⑩ 셀 편집 · 행 추가/삭제 → 저장 버튼</text>
+          <line class="arrow" x1="90" y1="496" x2="286" y2="496" marker-end="url(#ah3)"/>
+
+          <text class="alabel" x="390" y="532" text-anchor="middle">⑪ $.post(url, 변경분 C/U/D)</text>
+          <line class="arrow" x1="290" y1="540" x2="486" y2="540" marker-end="url(#ah3)"/>
+
+          <text class="alabel" x="590" y="576" text-anchor="middle">⑫ 저장 서비스 호출 → 트랜잭션 시작</text>
+          <line class="arrow" x1="490" y1="584" x2="686" y2="584" marker-end="url(#ah3)"/>
+
+          <text class="alabel" x="790" y="620" text-anchor="middle">⑬ insert / update / delete</text>
+          <line class="arrow" x1="690" y1="628" x2="886" y2="628" marker-end="url(#ah3)"/>
+
+          <text class="alabel dim" x="790" y="656" text-anchor="middle">⑭ 처리 건수</text>
+          <line class="arrow ret" x1="890" y1="664" x2="694" y2="664" marker-end="url(#ah3)"/>
+
+          <path class="arrow self" d="M690,690 h40 v24 h-36" marker-end="url(#ah3)"/>
+          <text class="alabel dim" x="742" y="706">⑮ 커밋 (예외 시 전체 롤백)</text>
+
+          <text class="alabel dim" x="590" y="742" text-anchor="middle">⑯ 결과 반환</text>
+          <line class="arrow ret" x1="690" y1="750" x2="494" y2="750" marker-end="url(#ah3)"/>
+
+          <text class="alabel dim" x="390" y="778" text-anchor="middle">⑰ JSON 응답</text>
+          <line class="arrow ret" x1="490" y1="786" x2="294" y2="786" marker-end="url(#ah3)"/>
+
+          <text class="alabel dim" x="190" y="814" text-anchor="middle">⑱ 완료 메시지 · 그리드 재조회</text>
+          <line class="arrow ret" x1="290" y1="822" x2="94" y2="822" marker-end="url(#ah3)"/>
+        </g>
+      </svg>
+      <div class="cap">
+        화면 코드는 <code>UstraRealGrid</code> API 그대로 호출하고, 호환 어댑터가 이를 TOAST UI Grid 로 옮긴다.
+        따라서 그리드 엔진을 바꿔도 <b>화면 HTML · Java · Mapper 는 변경되지 않는다</b>.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 5. 화면 진입 ============ -->
+  <section>
+    <h2><span class="num">5</span> 화면 진입 (SSR) 흐름</h2>
+    <p class="sub">데이터 조회와 달리, 화면 자체는 서버가 Thymeleaf 로 렌더링해 HTML 로 내려준다.</p>
+
+    <table>
+      <thead>
+        <tr><th style="width:52px">순서</th><th style="width:140px">위치</th><th>동작</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>사용자</td><td>좌측 메뉴에서 업무 메뉴를 클릭한다.</td></tr>
+        <tr><td>2</td><td>프론트</td><td><code>sidelayout</code> 이 MDI 탭을 추가하고, 해당 화면 URL 로 <code>iframe</code> 을 연다.</td></tr>
+        <tr><td>3</td><td>서버</td><td>필터 체인 통과 후 <code>@Controller</code>(<code>*Web</code>)가 요청을 받고, 메뉴/프로그램 권한을 검사한다.</td></tr>
+        <tr><td>4</td><td>서버</td><td>Thymeleaf 가 <code>framelayout</code> 을 decorate 해 화면 HTML 을 생성한다. 이때 <code>ustra.grid.engine</code> 설정(또는 <code>?gridEngine=</code>)에 따라 그리드 스크립트를 <b>택일 로드</b>한다.</td></tr>
+        <tr><td>5</td><td>프론트</td><td>iframe 안에서 HTML 이 로드되고, 부모의 테마 클래스를 복제한 뒤 그리드를 생성한다.</td></tr>
+        <tr><td>6</td><td>프론트 → 서버</td><td>화면 초기화 시 공통코드·부서·사원 등 기준정보를 <code>/api/**</code> 로 비동기 조회한다. <em>(이후는 4장 흐름과 동일)</em></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 6. 계층별 기술 ============ -->
+  <section>
+    <h2><span class="num">6</span> 계층별 구성 요소</h2>
+    <p class="sub">각 계층에서 실제로 쓰이는 기술과 대표 코드 위치다.</p>
+
+    <table>
+      <thead>
+        <tr><th style="width:110px">계층</th><th style="width:230px">기술</th><th>대표 위치</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>프론트</b></td>
+          <td>Thymeleaf + layout-dialect, jQuery 3.7 / jQuery UI, Lodash, Axios, TOAST UI Grid 4.21, RealGrid(전환 중), FullCalendar, SheetJS</td>
+          <td><code>ustra-hr-system-thymeleaf/src/main/resources/templates/</code><br><code>…/static/assets/js/ustra-utils/</code></td>
+        </tr>
+        <tr>
+          <td><b>보안</b></td>
+          <td>Spring Security 6, JWT(jjwt 0.13), Sha256 인코더, Lucy XSS Servlet Filter</td>
+          <td><code>framework-security/</code>, <code>framework-security-jwt/</code>, <code>ustra-hr-system-auth/…/WebSecurityConfig.java</code></td>
+        </tr>
+        <tr>
+          <td><b>웹 · 공통</b></td>
+          <td>Spring MVC, ControllerAdvice 예외 처리, 요청 로그 필터, 메시지 유틸</td>
+          <td><code>framework-web/</code>, <code>framework-core/</code></td>
+        </tr>
+        <tr>
+          <td><b>업무</b></td>
+          <td><code>@RestController</code> → <code>@Service</code> → <code>@Mapper</code> 3계층. 도메인별 패키지 분리</td>
+          <td><code>ustra-hr-system-core/</code>, <code>-api/</code>, <code>-pay/</code>, <code>-pay-yeta/</code></td>
+        </tr>
+        <tr>
+          <td><b>영속</b></td>
+          <td>MyBatis 3.0.5 + mybatis-paginator (주력), Spring Data JPA(토큰·파일·코드 등 일부), Ehcache 3</td>
+          <td><code>framework-data/</code>, 각 모듈 <code>src/main/resources/sqlmap/mappers/</code></td>
+        </tr>
+        <tr>
+          <td><b>DB</b></td>
+          <td>MariaDB <code>uhrmsdb</code>, HikariCP, log4jdbc DriverSpy(SQL 로깅), Jasypt(접속정보 암호화)</td>
+          <td><code>ustra-hr-system-core/src/main/resources/application-api.yml</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ 7. 모듈 구조 ============ -->
+  <section>
+    <h2><span class="num">7</span> 모듈 의존 방향</h2>
+    <p class="sub">실행 가능한 산출물은 thymeleaf · restapi 두 개뿐이고, 나머지는 라이브러리로 묶인다.</p>
+
+    <div class="figure">
+      <svg viewBox="0 0 980 330" role="img" aria-label="모듈 의존 구조 다이어그램">
+        <defs>
+          <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--text-dim)"/>
+          </marker>
+        </defs>
+        <g color="var(--text-dim)">
+          <!-- framework layer -->
+          <rect x="150" y="256" width="680" height="52" rx="10" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="lltext" x="490" y="278" text-anchor="middle">framework-core · data · security · security-jwt · web</text>
+          <text class="llsub"  x="490" y="295" text-anchor="middle">com.gsitm.framework.* — 업무 로직 없는 공통 기반</text>
+
+          <!-- core -->
+          <rect x="330" y="176" width="320" height="52" rx="10" fill="var(--be-bg)" stroke="var(--be)"/>
+          <text class="lltext" x="490" y="198" text-anchor="middle">ustra-hr-system-core</text>
+          <text class="llsub"  x="490" y="215" text-anchor="middle">공통코드 · 부서 · 사원 · 파일 · 메일 · 스케줄러</text>
+
+          <!-- domain modules -->
+          <rect x="70"  y="100" width="180" height="46" rx="10" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="lltext" x="160" y="128" text-anchor="middle">api</text>
+          <rect x="280" y="100" width="180" height="46" rx="10" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="lltext" x="370" y="128" text-anchor="middle">auth</text>
+          <rect x="490" y="100" width="180" height="46" rx="10" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="lltext" x="580" y="128" text-anchor="middle">pay</text>
+          <rect x="700" y="100" width="210" height="46" rx="10" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="lltext" x="805" y="128" text-anchor="middle">pay-yeta</text>
+
+          <!-- runnable -->
+          <rect x="120" y="16" width="310" height="52" rx="10" fill="var(--fe-bg)" stroke="var(--fe)"/>
+          <text class="lltext" x="275" y="38" text-anchor="middle">ustra-hr-system-thymeleaf</text>
+          <text class="llsub"  x="275" y="55" text-anchor="middle">ustra-hr.jar — 메인 웹 (:8081)</text>
+
+          <rect x="550" y="16" width="310" height="52" rx="10" fill="var(--fe-bg)" stroke="var(--fe)"/>
+          <text class="lltext" x="705" y="38" text-anchor="middle">ustra-hr-system-restapi</text>
+          <text class="llsub"  x="705" y="55" text-anchor="middle">ustra-hr-restapi.jar — 외부 연동 (:8083)</text>
+
+          <!-- arrows: framework -> core -->
+          <line class="arrow" x1="490" y1="256" x2="490" y2="232" marker-end="url(#ah2)"/>
+          <!-- core -> domain modules -->
+          <line class="arrow" x1="420" y1="176" x2="200" y2="150" marker-end="url(#ah2)"/>
+          <line class="arrow" x1="460" y1="176" x2="380" y2="150" marker-end="url(#ah2)"/>
+          <line class="arrow" x1="520" y1="176" x2="570" y2="150" marker-end="url(#ah2)"/>
+          <line class="arrow" x1="560" y1="176" x2="760" y2="150" marker-end="url(#ah2)"/>
+          <!-- domain -> runnable -->
+          <line class="arrow" x1="180" y1="100" x2="230" y2="72" marker-end="url(#ah2)"/>
+          <line class="arrow" x1="350" y1="100" x2="300" y2="72" marker-end="url(#ah2)"/>
+          <line class="arrow" x1="600" y1="100" x2="670" y2="72" marker-end="url(#ah2)"/>
+          <line class="arrow" x1="790" y1="100" x2="740" y2="72" marker-end="url(#ah2)"/>
+        </g>
+      </svg>
+      <div class="cap">화살표는 “의존한다” 방향이다. <code>ustra-hr-system-report</code> 는 <code>settings.gradle</code> 에 등록되어 있으나 소스가 없다.</div>
+    </div>
+  </section>
+
+  <!-- ============ 8. 외부 연동 ============ -->
+  <section>
+    <h2><span class="num">8</span> 외부 시스템 연동</h2>
+    <p class="sub">서버가 DB 외에 호출하는 외부 지점들이다. 주소는 프로파일(local/dev/prod)마다 달라진다.</p>
+
+    <div class="ext-grid">
+      <div class="ext-card"><div class="t">UbiForm 리포트</div><div class="d">급여명세서·증명서 등 출력물 생성 및 저장 (<code>ubiform-url</code>)</div></div>
+      <div class="ext-card"><div class="t">메일 시스템</div><div class="d">발송·이미지 서버 (<code>mailsystem-url</code>) · <code>mail.properties</code></div></div>
+      <div class="ext-card"><div class="t">연말정산 API</div><div class="d">전자세금 연계 (<code>pay-api-url</code> — etax)</div></div>
+      <div class="ext-card"><div class="t">주소 검색</div><div class="d">도로명주소 API (<code>juso.go.kr</code>)</div></div>
+      <div class="ext-card"><div class="t">전자결재(uhr)</div><div class="d">결재 상신·조회 연동 화면 및 API</div></div>
+      <div class="ext-card"><div class="t">HRP 연계</div><div class="d">외부 HR 플랫폼 연동 (<code>base-url</code>)</div></div>
+    </div>
+
+    <div class="note" style="margin-top:14px">
+      <b>운영 시 알아둘 점</b>
+      <ul>
+        <li><code>spring.profiles.active</code> 는 <b>모듈 설정 로딩용</b>(core, web, api)과 <b>환경</b>(local/dev1/dev2/prod1/prod2)이 함께 지정된다.</li>
+        <li><code>spring.security.filter.dispatcher-types</code> 를 <code>async, error, request</code> 로 고정해야 한다. FORWARD 까지 태우면 로그인 실패 시 무한 forward 로 <code>StackOverflowError</code> 가 난다.</li>
+        <li>그리드 엔진은 <b>동시에 두 개를 로드할 수 없어</b> 서버사이드에서 택일한다. 되돌리려면 <code>ustra.grid.engine: realgrid</code> 한 줄만 바꾸면 된다.</li>
+        <li>DB 접속 정보 등 민감값은 Jasypt 로 암호화해 커밋한다. 평문 금지.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer class="page">
+    작성 근거: <code>README.md</code>, <code>settings.gradle</code>, <code>application-api.yml</code>,
+    <code>framework-security*/</code>, <code>ustra-hr-system-*/</code> 소스 및 설정.
+    구조 변경 시 이 문서도 함께 갱신할 것.
+  </footer>
+
+</div>
+</body>
+</html>
