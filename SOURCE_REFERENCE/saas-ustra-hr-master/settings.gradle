@@ -1,21 +1,34 @@
 plugins {
-    // JDK 21 이 로컬에 없을 경우 Gradle 이 자동으로 내려받도록 하는 toolchain resolver
     id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
 }
 
 rootProject.name = 'saas-ustra-hr'
 
-include 'framework-core'
-include 'framework-data'
-include 'framework-security'
-include 'framework-security-jwt'
-include 'framework-web'
+// 실제 디렉터리와 build.gradle이 있는 모듈만 등록
+def candidateModules = [
+    'framework-core',
+    'framework-data',
+    'framework-security',
+    'framework-security-jwt',
+    'framework-web',
+    'ustra-hr-system-core',
+    'ustra-hr-system-api',
+    'ustra-hr-system-pay',
+    'ustra-hr-system-auth',
+    'ustra-hr-system-report',
+    'ustra-hr-system-thymeleaf',
+    'ustra-hr-system-restapi',
+    'ustra-hr-system-pay-yeta'
+]
 
-include 'ustra-hr-system-core'
-include 'ustra-hr-system-api'
-include 'ustra-hr-system-pay'
-include 'ustra-hr-system-auth'
-include 'ustra-hr-system-report'
-include 'ustra-hr-system-thymeleaf'
-include 'ustra-hr-system-restapi'
-include 'ustra-hr-system-pay-yeta'
+candidateModules.each { moduleName ->
+    def moduleDir = file(moduleName)
+
+    if (moduleDir.isDirectory() &&
+        new File(moduleDir, 'build.gradle').isFile()) {
+        include(":${moduleName}")
+        println("[MODULE] 포함: ${moduleName}")
+    } else {
+        println("[MODULE] 건너뜀: ${moduleName} (폴더 또는 build.gradle 없음)")
+    }
+}
