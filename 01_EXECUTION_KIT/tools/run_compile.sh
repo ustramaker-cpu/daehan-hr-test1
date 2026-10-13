@@ -37,7 +37,7 @@ if [ "$framework_rc" -ne 0 ]; then
   exit 21
 fi
 set +e
-./gradlew --no-daemon :ustra-hr-system-thymeleaf:bootWar >"$OUT_DIR/web_bootwar.raw.log" 2>&1
+./gradlew --no-daemon :ustra-hr-system-thymeleaf:jar >"$OUT_DIR/web_bootwar.raw.log" 2>&1
 build_rc=$?
 set -e
 printf '%s\n' "$build_rc" > "$OUT_DIR/web_bootwar.exitcode"
